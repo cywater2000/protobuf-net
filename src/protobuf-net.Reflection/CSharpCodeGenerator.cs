@@ -337,7 +337,8 @@ namespace ProtoBuf.Reflection
         /// </summary>
         protected override void WriteInitField(GeneratorContext ctx, FieldDescriptorProto field, ref object state, OneOfStub[] oneOfs)
         {
-            var name = ctx.NameNormalizer.GetName(field);
+            var pascalName = ctx.NameNormalizer.GetName(field);
+            var name = ToCamelCase(pascalName);
             bool isOptional = field.label == FieldDescriptorProto.Label.LabelOptional;
             bool isRepeated = field.label == FieldDescriptorProto.Label.LabelRepeated;
             var typeName = GetTypeName(ctx, field, out var dataFormat, out _, out _, out var isMap);
@@ -456,9 +457,10 @@ namespace ProtoBuf.Reflection
         /// </summary>
         protected override void WriteField(GeneratorContext ctx, FieldDescriptorProto field, ref object state, OneOfStub[] oneOfs)
         {
-            var name = ctx.NameNormalizer.GetName(field);
+            var pascalName = ctx.NameNormalizer.GetName(field);
+            var name = ToCamelCase(pascalName);
             var tw = ctx.Write($"[global::ProtoBuf.ProtoMember({field.Number}");
-            if (name != field.Name)
+            if (pascalName != field.Name)
             {
                 tw.Write($@", Name = @""{field.Name}""");
             }
@@ -605,14 +607,14 @@ namespace ProtoBuf.Reflection
 
                 if (ctx.Supports(CSharp6))
                 {
-                    ctx.WriteLine($"{GetAccess(GetAccess(field))} bool ShouldSerialize{name}() => {fieldName}.Is({field.Number});")
-                    .WriteLine($"{GetAccess(GetAccess(field))} void Reset{name}() => global::ProtoBuf.{unionType}.Reset(ref {fieldName}, {field.Number});");
+                    ctx.WriteLine($"{GetAccess(GetAccess(field))} bool ShouldSerialize{pascalName}() => {fieldName}.Is({field.Number});")
+                    .WriteLine($"{GetAccess(GetAccess(field))} void Reset{pascalName}() => global::ProtoBuf.{unionType}.Reset(ref {fieldName}, {field.Number});");
                 }
                 else
                 {
-                    ctx.WriteLine($"{GetAccess(GetAccess(field))} bool ShouldSerialize{name}()").WriteLine("{").Indent()
+                    ctx.WriteLine($"{GetAccess(GetAccess(field))} bool ShouldSerialize{pascalName}()").WriteLine("{").Indent()
                         .WriteLine($"return {fieldName}.Is({field.Number});").Outdent().WriteLine("}")
-                        .WriteLine($"{GetAccess(GetAccess(field))} void Reset{name}()").WriteLine("{").Indent()
+                        .WriteLine($"{GetAccess(GetAccess(field))} void Reset{pascalName}()").WriteLine("{").Indent()
                         .WriteLine($"global::ProtoBuf.{unionType}.Reset(ref {fieldName}, {field.Number});").Outdent().WriteLine("}");
                 }
 
@@ -658,14 +660,14 @@ namespace ProtoBuf.Reflection
                     .Outdent().WriteLine("}");
                 if (ctx.Supports(CSharp6))
                 {
-                    ctx.WriteLine($"{GetAccess(GetAccess(field))} bool ShouldSerialize{name}() => {fieldName} != null;")
-                    .WriteLine($"{GetAccess(GetAccess(field))} void Reset{name}() => {fieldName} = null;");
+                    ctx.WriteLine($"{GetAccess(GetAccess(field))} bool ShouldSerialize{pascalName}() => {fieldName} != null;")
+                    .WriteLine($"{GetAccess(GetAccess(field))} void Reset{pascalName}() => {fieldName} = null;");
                 }
                 else
                 {
-                    ctx.WriteLine($"{GetAccess(GetAccess(field))} bool ShouldSerialize{name}()").WriteLine("{").Indent()
+                    ctx.WriteLine($"{GetAccess(GetAccess(field))} bool ShouldSerialize{pascalName}()").WriteLine("{").Indent()
                         .WriteLine($"return {fieldName} != null;").Outdent().WriteLine("}")
-                        .WriteLine($"{GetAccess(GetAccess(field))} void Reset{name}()").WriteLine("{").Indent()
+                        .WriteLine($"{GetAccess(GetAccess(field))} void Reset{pascalName}()").WriteLine("{").Indent()
                         .WriteLine($"{fieldName} = null;").Outdent().WriteLine("}");
                 }
                 ctx.WriteLine($"private {fieldType} {fieldName};");
@@ -684,6 +686,11 @@ namespace ProtoBuf.Reflection
         }
 
         private static string GetOneOfFieldName(OneofDescriptorProto obj) => FieldPrefix + obj.Name;
+
+        private static string ToCamelCase(string value)
+            => string.IsNullOrEmpty(value) || char.IsLowerInvariant(value[0])
+                ? value
+                : char.ToLowerInvariant(value[0]) + value.Substring(1);
 
         private static readonly Version // note: only mentioning features we use
             CSharp3 = new Version(3, 0), // partial methods
